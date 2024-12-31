@@ -1,10 +1,10 @@
 #include "process_open_fd_count.h"
 
-#include "process_thread_count.h"
-
 #include <opentelemetry/metrics/async_instruments.h>
 #include <opentelemetry/metrics/observer_result.h>
+#include <opentelemetry/metrics/sync_instruments.h>
 #include <opentelemetry/nostd/shared_ptr.h>
+#include <opentelemetry/semconv/incubating/process_metrics.h>
 
 #include "types.h"
 #include "utils.h"
@@ -25,9 +25,9 @@ void observe_open_fd_count(opentelemetry::metrics::ObserverResult result, void*)
  */
 void observe_process_open_fd_count(const opentelemetry::nostd::shared_ptr<opentelemetry::metrics::Meter>& meter)
 {
-    static auto process_open_fd_count_counter{meter->CreateInt64ObservableUpDownCounter(
-        "process.open_file_descriptor.count", "Number of file descriptors in use by the process.", "{count}"
-    )};
+    static auto process_open_fd_count_counter{
+        opentelemetry::semconv::process::CreateAsyncInt64MetricProcessOpenFileDescriptorCount(meter.get())
+    };
 
     process_open_fd_count_counter->AddCallback(observe_open_fd_count, nullptr);
 }

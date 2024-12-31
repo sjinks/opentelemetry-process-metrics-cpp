@@ -1,13 +1,16 @@
 #include "process_network_io.h"
 
+#include <exception>
 #include <fstream>
 #include <sstream>
-#include <stdexcept>
 #include <string>
 
 #include <opentelemetry/metrics/async_instruments.h>
 #include <opentelemetry/metrics/observer_result.h>
+#include <opentelemetry/metrics/sync_instruments.h>
 #include <opentelemetry/nostd/shared_ptr.h>
+#include <opentelemetry/semconv/incubating/network_attributes.h>
+#include <opentelemetry/semconv/incubating/process_metrics.h>
 
 #include "types.h"
 
@@ -63,8 +66,8 @@ network_io_stats get_network_io_stats()
 
 void observe_network_io(opentelemetry::metrics::ObserverResult result, void*)
 {
-    static const labels_t direction_receive_labels{{"network.io.direction", "receive"}};
-    static const labels_t direction_transmit_labels{{"network.io.direction", "transmit"}};
+    static const labels_t direction_receive_labels{{opentelemetry::semconv::network::kNetworkIoDirection, opentelemetry::semconv::network::NetworkIoDirectionValues::kReceive}};
+    static const labels_t direction_transmit_labels{{opentelemetry::semconv::network::kNetworkIoDirection, opentelemetry::semconv::network::NetworkIoDirectionValues::kTransmit}};
 
     if (const auto usage = get_network_io_stats(); usage.bytes_received != -1) {
         opentelemetry::nostd::get<observer_result_int64>(result)->Observe(usage.bytes_received, direction_receive_labels);
@@ -80,7 +83,7 @@ void observe_network_io(opentelemetry::metrics::ObserverResult result, void*)
 void observe_process_network_io(const opentelemetry::nostd::shared_ptr<opentelemetry::metrics::Meter>& meter)
 {
     static auto process_network_io_counter{
-        meter->CreateInt64ObservableCounter("process.network.io", "Network bytes transferred.", "By")
+        opentelemetry::semconv::process::CreateAsyncInt64MetricProcessNetworkIo(meter.get())
     };
 
     process_network_io_counter->AddCallback(observe_network_io, nullptr);

@@ -8,7 +8,6 @@
 #include <sstream>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 
 namespace {
 
@@ -121,6 +120,10 @@ void proc_pid_status_observer::observe()
         while (std::getline(f, line)) {
             std::istringstream iss(line);
             iss >> key;
+            if (!key.empty()) {
+                key.pop_back();
+            }
+
             if (auto handler = get_handler(key); handler) {
                 long long int value;  // NOLINT(*-init-variables)
                 iss >> value;

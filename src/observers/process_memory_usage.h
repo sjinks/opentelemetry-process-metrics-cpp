@@ -2,6 +2,7 @@
 #define DBB0F0D3_59A1_4A22_9054_ADD490BB8B16
 
 #include <opentelemetry/metrics/meter.h>
+#include <opentelemetry/nostd/shared_ptr.h>
 
 class debouncing_observer;
 

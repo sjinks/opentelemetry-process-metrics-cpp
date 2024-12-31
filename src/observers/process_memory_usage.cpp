@@ -2,7 +2,9 @@
 
 #include <opentelemetry/metrics/async_instruments.h>
 #include <opentelemetry/metrics/observer_result.h>
+#include <opentelemetry/metrics/sync_instruments.h>
 #include <opentelemetry/nostd/shared_ptr.h>
+#include <opentelemetry/semconv/incubating/process_metrics.h>
 
 #include "debouncing_observer.h"
 #include "types.h"
@@ -25,7 +27,7 @@ void observe_memory_usage(opentelemetry::metrics::ObserverResult result, void* a
 void observe_process_memory_usage(const opentelemetry::nostd::shared_ptr<opentelemetry::metrics::Meter>& meter, const debouncing_observer& observer)
 {
     static auto process_memory_usage_counter{
-        meter->CreateInt64ObservableUpDownCounter("process.memory.usage", "The amount of physical memory in use.", "By")
+        opentelemetry::semconv::process::CreateAsyncInt64MetricProcessMemoryUsage(meter.get())
     };
 
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)

@@ -1,4 +1,3 @@
-#include <memory>
 #include <sys/timerfd.h>
 
 #include <opentelemetry/common/attribute_value.h>
@@ -7,12 +6,9 @@
 #include <opentelemetry/metrics/provider.h>
 #include <opentelemetry/nostd/shared_ptr.h>
 #include <opentelemetry/nostd/string_view.h>
-#include <opentelemetry/trace/semantic_conventions.h>
+#include <opentelemetry/semconv/schema_url.h>
 
 #include "wwa/opentelemetry_process_metrics/process_metrics.h"
-
-#include "observers/rusage.h"
-#include "observers/status.h"
 
 #include "observers/debouncing_observer.h"
 #include "observers/process_context_switches.h"
@@ -34,7 +30,7 @@ void wwa::opentelemetry::init_process_metrics()
     }
 
     auto meter = ::opentelemetry::metrics::Provider::GetMeterProvider()->GetMeter(
-        "process.metrics", "1.2.0", ::opentelemetry::trace::SemanticConventions::kSchemaUrl
+        "process.metrics", "1.29.0", ::opentelemetry::semconv::kSchemaUrl
     );
 
     observe_process_cpu_time(meter, observer);
@@ -43,7 +39,7 @@ void wwa::opentelemetry::init_process_metrics()
     observe_process_memory_virtual(meter, observer);
     observe_process_disk_io(meter);
     observe_process_network_io(meter);
-    observe_process_thread_count(meter);
+    observe_process_thread_count(meter, observer);
     observe_process_open_fd_count(meter);
     observe_process_context_switches(meter, observer);
     observe_process_paging_faults(meter, observer);

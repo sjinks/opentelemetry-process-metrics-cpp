@@ -2,7 +2,10 @@
 
 #include <opentelemetry/metrics/async_instruments.h>
 #include <opentelemetry/metrics/observer_result.h>
+#include <opentelemetry/metrics/sync_instruments.h>
 #include <opentelemetry/nostd/shared_ptr.h>
+#include <opentelemetry/semconv/incubating/cpu_attributes.h>
+#include <opentelemetry/semconv/incubating/process_metrics.h>
 
 #include "debouncing_observer.h"
 #include "types.h"
@@ -11,8 +14,8 @@ namespace {
 
 void observe_cpu_time(opentelemetry::metrics::ObserverResult result, void* arg)
 {
-    static const labels_t cpu_mode_user_labels{{"cpu.mode", "user"}};
-    static const labels_t cpu_mode_system_labels{{"cpu.mode", "system"}};
+    static const labels_t cpu_mode_user_labels{{opentelemetry::semconv::cpu::kCpuMode, opentelemetry::semconv::cpu::CpuModeValues::kUser}};
+    static const labels_t cpu_mode_system_labels{{opentelemetry::semconv::cpu::kCpuMode, opentelemetry::semconv::cpu::CpuModeValues::kSystem}};
 
     const auto* observer = static_cast<const debouncing_observer*>(arg);
     if (const auto& usage = observer->get_usage(); usage.ok) {
@@ -28,9 +31,9 @@ void observe_cpu_time(opentelemetry::metrics::ObserverResult result, void* arg)
  */
 void observe_process_cpu_time(const opentelemetry::nostd::shared_ptr<opentelemetry::metrics::Meter>& meter, const debouncing_observer& observer)
 {
-    static auto process_cpu_time_counter{meter->CreateDoubleObservableCounter(
-        "process.cpu.time", "Total CPU seconds broken down by different states.", "s"
-    )};
+    static auto process_cpu_time_counter{
+        opentelemetry::semconv::process::CreateAsyncDoubleMetricProcessCpuTime(meter.get())
+    };
 
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
     process_cpu_time_counter->AddCallback(observe_cpu_time, const_cast<debouncing_observer*>(&observer));

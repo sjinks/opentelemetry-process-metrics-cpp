@@ -2,17 +2,20 @@
 
 #include <opentelemetry/metrics/async_instruments.h>
 #include <opentelemetry/metrics/observer_result.h>
+#include <opentelemetry/metrics/sync_instruments.h>
 #include <opentelemetry/nostd/shared_ptr.h>
+#include <opentelemetry/semconv/incubating/process_metrics.h>
 
+#include "debouncing_observer.h"
 #include "types.h"
-#include "utils.h"
 
 namespace {
 
-void observe_thread_count(opentelemetry::metrics::ObserverResult result, void*)
+void observe_thread_count(opentelemetry::metrics::ObserverResult result, void* arg)
 {
-    if (auto count = count_fs_entries("/proc/self/task"); count != -1) {
-        opentelemetry::nostd::get<observer_result_int64>(result)->Observe(count);
+    const auto* observer = static_cast<const debouncing_observer*>(arg);
+    if (const auto& status = observer->get_status(); status.ok) {
+        opentelemetry::nostd::get<observer_result_int64>(result)->Observe(status.threads);
     }
 }
 
@@ -21,11 +24,12 @@ void observe_thread_count(opentelemetry::metrics::ObserverResult result, void*)
 /**
  * @see https://opentelemetry.io/docs/specs/semconv/system/process-metrics/#metric-processthreadcount
  */
-void observe_process_thread_count(const opentelemetry::nostd::shared_ptr<opentelemetry::metrics::Meter>& meter)
+void observe_process_thread_count(const opentelemetry::nostd::shared_ptr<opentelemetry::metrics::Meter>& meter, const debouncing_observer& observer)
 {
     static auto process_thread_count_counter{
-        meter->CreateInt64ObservableUpDownCounter("process.thread.count", "Process threads count.", "{thread}")
+        opentelemetry::semconv::process::CreateAsyncInt64MetricProcessThreadCount(meter.get())
     };
 
-    process_thread_count_counter->AddCallback(observe_thread_count, nullptr);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+    process_thread_count_counter->AddCallback(observe_thread_count, const_cast<debouncing_observer*>(&observer));
 }

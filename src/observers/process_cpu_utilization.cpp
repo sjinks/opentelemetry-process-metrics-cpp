@@ -2,7 +2,10 @@
 
 #include <opentelemetry/metrics/async_instruments.h>
 #include <opentelemetry/metrics/observer_result.h>
+#include <opentelemetry/metrics/sync_instruments.h>
 #include <opentelemetry/nostd/shared_ptr.h>
+#include <opentelemetry/semconv/incubating/cpu_attributes.h>
+#include <opentelemetry/semconv/incubating/process_metrics.h>
 
 #include "debouncing_observer.h"
 #include "types.h"
@@ -11,8 +14,8 @@ namespace {
 
 void observe_cpu_utilization(opentelemetry::metrics::ObserverResult result, void* arg)
 {
-    static const labels_t cpu_mode_user_labels{{"cpu.mode", "user"}};
-    static const labels_t cpu_mode_system_labels{{"cpu.mode", "system"}};
+    static const labels_t cpu_mode_user_labels{{opentelemetry::semconv::cpu::kCpuMode, opentelemetry::semconv::cpu::CpuModeValues::kUser}};
+    static const labels_t cpu_mode_system_labels{{opentelemetry::semconv::cpu::kCpuMode, opentelemetry::semconv::cpu::CpuModeValues::kSystem}};
 
     const auto* observer = static_cast<const debouncing_observer*>(arg);
     if (const auto& usage = observer->get_usage(); usage.ok) {
@@ -28,11 +31,9 @@ void observe_cpu_utilization(opentelemetry::metrics::ObserverResult result, void
  */
 void observe_process_cpu_utilization(const opentelemetry::nostd::shared_ptr<opentelemetry::metrics::Meter>& meter, const debouncing_observer& observer)
 {
-    static auto process_cpu_utilization_gauge{meter->CreateDoubleObservableGauge(
-        "process.cpu.utilization",
-        "Difference in process.cpu.time since the last measurement, divided by the elapsed time and number of CPUs available to the process.",
-        "1"
-    )};
+    static auto process_cpu_utilization_gauge{
+        opentelemetry::semconv::process::CreateAsyncDoubleMetricProcessCpuUtilization(meter.get())
+    };
 
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
     process_cpu_utilization_gauge->AddCallback(observe_cpu_utilization, const_cast<debouncing_observer*>(&observer));

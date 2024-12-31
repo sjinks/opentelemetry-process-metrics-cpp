@@ -2,7 +2,10 @@
 
 #include <opentelemetry/metrics/async_instruments.h>
 #include <opentelemetry/metrics/observer_result.h>
+#include <opentelemetry/metrics/sync_instruments.h>
 #include <opentelemetry/nostd/shared_ptr.h>
+#include <opentelemetry/semconv/incubating/process_attributes.h>
+#include <opentelemetry/semconv/incubating/process_metrics.h>
 
 #include "debouncing_observer.h"
 #include "types.h"
@@ -11,8 +14,8 @@ namespace {
 
 void observe_paging_faults(::opentelemetry::metrics::ObserverResult result, void* arg)
 {
-    static const labels_t fault_type_major_labels{{"process.paging.fault_type", "major"}};
-    static const labels_t fault_type_minor_labels{{"process.paging.fault_type", "minor"}};
+    static const labels_t fault_type_major_labels{{opentelemetry::semconv::process::kProcessPagingFaultType, opentelemetry::semconv::process::ProcessPagingFaultTypeValues::kMajor}};
+    static const labels_t fault_type_minor_labels{{opentelemetry::semconv::process::kProcessPagingFaultType, opentelemetry::semconv::process::ProcessPagingFaultTypeValues::kMinor}};
 
     const auto* observer = static_cast<const debouncing_observer*>(arg);
     if (const auto& usage = observer->get_usage(); usage.ok) {
@@ -28,9 +31,9 @@ void observe_paging_faults(::opentelemetry::metrics::ObserverResult result, void
  */
 void observe_process_paging_faults(const opentelemetry::nostd::shared_ptr<opentelemetry::metrics::Meter>& meter, const debouncing_observer& observer)
 {
-    static auto process_paging_faults_counter{meter->CreateInt64ObservableCounter(
-        "process.paging.faults", "Number of page faults the process has made.", "{fault}"
-    )};
+    static auto process_paging_faults_counter{
+        opentelemetry::semconv::process::CreateAsyncInt64MetricProcessPagingFaults(meter.get())
+    };
 
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
     process_paging_faults_counter->AddCallback(observe_paging_faults, const_cast<debouncing_observer*>(&observer));

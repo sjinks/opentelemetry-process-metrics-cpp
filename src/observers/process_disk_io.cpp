@@ -1,13 +1,16 @@
 #include "process_disk_io.h"
 
+#include <exception>
 #include <fstream>
 #include <sstream>
-#include <stdexcept>
 #include <string>
 
 #include <opentelemetry/metrics/async_instruments.h>
 #include <opentelemetry/metrics/observer_result.h>
+#include <opentelemetry/metrics/sync_instruments.h>
 #include <opentelemetry/nostd/shared_ptr.h>
+#include <opentelemetry/semconv/incubating/disk_attributes.h>
+#include <opentelemetry/semconv/incubating/process_metrics.h>
 
 #include "types.h"
 
@@ -48,8 +51,8 @@ disk_io_stats get_disk_io_stats()
 
 void observe_disk_io(opentelemetry::metrics::ObserverResult result, void*)
 {
-    static const labels_t direction_read_labels{{"disk.io.direction", "read"}};
-    static const labels_t direction_write_labels{{"disk.io.direction", "write"}};
+    static const labels_t direction_read_labels{{opentelemetry::semconv::disk::kDiskIoDirection, opentelemetry::semconv::disk::DiskIoDirectionValues::kRead}};
+    static const labels_t direction_write_labels{{opentelemetry::semconv::disk::kDiskIoDirection, opentelemetry::semconv::disk::DiskIoDirectionValues::kWrite}};
 
     if (const auto usage = get_disk_io_stats(); usage.read_bytes != -1) {
         opentelemetry::nostd::get<observer_result_int64>(result)->Observe(usage.read_bytes, direction_read_labels);
@@ -65,7 +68,7 @@ void observe_disk_io(opentelemetry::metrics::ObserverResult result, void*)
 void observe_process_disk_io(const opentelemetry::nostd::shared_ptr<opentelemetry::metrics::Meter>& meter)
 {
     static auto process_disk_io_counter{
-        meter->CreateInt64ObservableCounter("process.disk.io", "Disk bytes transferred.", "By")
+        opentelemetry::semconv::process::CreateAsyncInt64MetricProcessDiskIo(meter.get())
     };
 
     process_disk_io_counter->AddCallback(observe_disk_io, nullptr);
